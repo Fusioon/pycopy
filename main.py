@@ -26,7 +26,6 @@ dataEvent = Event()
 def isTimestampValid(timestamp: int) -> bool:
     now = datetime.utcnow().timestamp()
     now -= MAX_DATA_AGE_S
-    print(f"now: {now} | {timestamp}")
     return now < timestamp
 
 def onNewData(value):
@@ -45,19 +44,21 @@ def onNewData(value):
 
 dblistener = rtdb.Listen("", onNewData)
 
-def sendAutomateRequest(text: str):
+def sendAutomateRequest(text: str) -> bool:
     AUTOMATE_REQUEST["payload"] = text
     post_response = requests.post(AUTOMATE_ENDPOINT, json=AUTOMATE_REQUEST)
+    return post_response.status_code == 200
 
 def copyHotkey():
+    print("copy")
     kb.release(Key.alt)
+    kb.release("C")
     with kb.pressed(Key.ctrl):
         kb.press('c')
         kb.release('c')  
     
     sleep(0.03)
     clip = pyperclip.paste()
-    print(clip)
     sendAutomateRequest(clip)
 
 def getFirebaseResponse(timeoutMS: int) -> str:
@@ -78,7 +79,9 @@ def pasteText(text: str):
         kb.release('v')
 
 def pasteHotkey():
+    print("paste")
     kb.release(Key.alt)
+    kb.release("X")
     try:
         dataEvent.clear()
         sendAutomateRequest(COPY_MESSAGE_TEXT)

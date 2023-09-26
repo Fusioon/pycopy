@@ -25,7 +25,6 @@ class DBListener:
 
     def handleLine(self, line: str):
         DATA_LINE_START = "data: "
-        print(line)
         if not line.startswith(DATA_LINE_START):
             return
         
