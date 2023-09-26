@@ -7,22 +7,8 @@ import requests
 from firebasedb import FirebaseDB
 from threading import Event
 
-# Allow direct pasting from phone without the need to press keyboard shortcut
-ALLOW_DIRECT_PASTE = True
-# Maximum time to wait for a response from phone (in seconds)
-MAX_WAIT_TIME_S = 4.0
-# Maximum time the data is considered valid (in seconds)
-MAX_DATA_AGE_S = 10.0
-# We are using same notification channel for copy and paste so this literal is used when we want to retrieve data fromn phone
-COPY_MESSAGE_TEXT = "#%$copy$%#"
-COPY_HOTKEY = '<alt>+c'
-PASTE_HOTKEY = '<alt>+x'
+from conf import *
 
-FIREBASE_URL = ""
-FIREBASE_SECRET = ""
-
-AUTOMATE_APIKEY = ""
-AUTOMATE_EMAIL = ""
 AUTOMATE_REQUEST = {
     "secret": AUTOMATE_APIKEY,
     "to": AUTOMATE_EMAIL,
@@ -30,7 +16,6 @@ AUTOMATE_REQUEST = {
     "priority": "normal",
     "payload": None
 }
-AUTOMATE_ENDPOINT = "https://llamalab.com/automate/cloud/message"
 
 rtdb = FirebaseDB(FIREBASE_URL, FIREBASE_SECRET)
 kb = Controller()
@@ -93,10 +78,10 @@ def pasteText(text: str):
         kb.release('v')
 
 def pasteHotkey():
-    dataEvent.clear()
+    kb.release(Key.alt)
     try:
+        dataEvent.clear()
         sendAutomateRequest(COPY_MESSAGE_TEXT)
-        kb.release(Key.alt)
         data = getFirebaseResponse(4000)
         if data:
             pasteText(data)
