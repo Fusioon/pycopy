@@ -5,9 +5,43 @@ from pynput.keyboard import Key, KeyCode, Controller
 import pyperclip
 import requests
 from firebasedb import FirebaseDB
-from threading import Event
+from threading import Event, Thread
+import queue
+import sys
+import socket
 
 from conf import *
+
+class EventType:
+    COPY = 1
+    PASTE = 2
+    CLOSE = 3
+
+
+if len(sys.argv) >= 2:
+    arg = sys.argv[1].lower()
+    eventType: EventType
+    if (arg == "copy"):
+        eventType = EventType.COPY
+    elif (arg == "paste"):
+        eventType = EventType.PASTE
+    elif (arg == "close"):
+        eventType = EventType.CLOSE
+    else:
+        print(f"Unknown argument '{arg}'")
+        sys.exit(1)
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect(("127.0.0.1", PORT))
+        s.send(eventType.to_bytes(1, 'big') )
+    sys.exit(0)
+
+
+eventQueue = queue.SimpleQueue()
+running = False
+soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+soc.bind(("127.0.0.1", PORT))
+soc.listen()
 
 AUTOMATE_REQUEST = {
     "secret": AUTOMATE_APIKEY,
@@ -49,10 +83,8 @@ def sendAutomateRequest(text: str) -> bool:
     post_response = requests.post(AUTOMATE_ENDPOINT, json=AUTOMATE_REQUEST)
     return post_response.status_code == 200
 
-def copyHotkey():
+def triggerCopy():
     print("copy")
-    kb.release(Key.alt)
-    kb.release("C")
     with kb.pressed(Key.ctrl):
         kb.press('c')
         kb.release('c')  
@@ -78,10 +110,8 @@ def pasteText(text: str):
         kb.press('v')
         kb.release('v')
 
-def pasteHotkey():
+def triggerPaste():
     print("paste")
-    kb.release(Key.alt)
-    kb.release("X")
     try:
         dataEvent.clear()
         sendAutomateRequest(COPY_MESSAGE_TEXT)
@@ -91,9 +121,55 @@ def pasteHotkey():
         else:
             print("Failed to retrieve data")
     except:
-        pass
+        pass  
 
-with keyboard.GlobalHotKeys({
-        COPY_HOTKEY: copyHotkey,
-        PASTE_HOTKEY: pasteHotkey}) as h:
-    h.join()
+def onCopy():
+    global eventQueue
+    kb.release(Key.alt)
+    kb.release("C")
+    eventQueue.put(EventType.COPY)
+    
+
+def onPaste():
+    global eventQueue
+    kb.release(Key.alt)
+    kb.release("X")
+    eventQueue.put(EventType.PASTE)
+
+def processPipe():
+    global soc, running, eventQueue
+    while running:
+        conn, addr = soc.accept()
+        with conn:
+            data = conn.recv(1)
+            event = int.from_bytes(data, byteorder='big')
+            eventQueue.put(event)
+            print(f"Received event: {event}")
+
+h = None
+if not ONLY_SYSTEM_HOTKEYS:
+    h = keyboard.GlobalHotKeys({
+            COPY_HOTKEY: onCopy,
+            PASTE_HOTKEY: onPaste})
+    h.start()
+
+
+running = True
+pipeThread = Thread(target=processPipe)
+pipeThread.start()
+while running:
+    item = eventQueue.get()
+    if item == EventType.CLOSE:
+        running = False
+        break
+    elif item == EventType.COPY:
+        triggerCopy()
+    elif item == EventType.PASTE:
+        triggerPaste()
+
+if h:
+    h.stop()
+
+dblistener.stop()
+soc.close()
+sys.exit(0)

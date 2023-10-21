@@ -10,7 +10,7 @@ class DBListener:
     cb: callable(...)
     thread: "threading.Thread"
     url: str
-
+    response = None
     currentValue: any
 
     def __init__(self, parent: "FirebaseDB", path: str, cb: callable(any)):
@@ -22,6 +22,8 @@ class DBListener:
 
     def stop(self):
         self.running = False
+        if self.response:
+            self.response.close()
 
     def handleLine(self, line: str):
         DATA_LINE_START = "data: "
@@ -46,9 +48,9 @@ class DBListener:
         while self.running:
             try:
                 session = requests.Session()
-                response = session.get(self.url, headers=header, stream=True, allow_redirects=True)
-
-                for line in response.iter_lines(chunk_size=1, decode_unicode=True):
+                self.response = session.get(self.url, headers=header, stream=True, allow_redirects=True)
+                
+                for line in self.response.iter_lines(chunk_size=1, decode_unicode=True):
                     if line:
                         self.handleLine(line)
             except:

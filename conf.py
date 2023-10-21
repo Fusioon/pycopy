@@ -6,6 +6,12 @@ MAX_WAIT_TIME_S = 4.0
 MAX_DATA_AGE_S = 10.0
 # We are using same notification channel for copy and paste so this literal is used when we want to retrieve data fromn phone
 COPY_MESSAGE_TEXT = "#%$copy$%#"
+
+# Port used for interprocess communication
+PORT = 32145
+# Copy & Paste can only be triggered by sending events through socket
+# No hotkeys will be registered by application
+ONLY_SYSTEM_HOTKEYS = False
 COPY_HOTKEY = '<alt>+c'
 PASTE_HOTKEY = '<alt>+x'
 
